@@ -1,0 +1,10 @@
+# Requirements for Python 3.13 compatibility
+# Use these versions if you're using Python 3.13
+
+fastapi>=0.115.0
+uvicorn[standard]>=0.32.0
+pydantic>=2.10.0
+openai>=1.54.0
+python-multipart>=0.0.12
+jinja2>=3.1.5
+requests>=2.32.0

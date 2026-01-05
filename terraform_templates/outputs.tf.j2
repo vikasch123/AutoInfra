@@ -1,0 +1,38 @@
+output "vpc_id" {
+  description = "VPC ID"
+  value       = aws_vpc.main.id
+}
+
+{% if load_balancer %}
+output "alb_dns_name" {
+  description = "DNS name of the load balancer"
+  value       = aws_lb.main.dns_name
+}
+
+output "alb_arn" {
+  description = "ARN of the load balancer"
+  value       = aws_lb.main.arn
+}
+{% endif %}
+
+output "app_instance_ids" {
+  description = "IDs of the application instances"
+  value       = [{% for i in range(1, app_count + 1) %}aws_instance.app{{ i }}.id{% if not loop.last %}, {% endif %}{% endfor %}]
+}
+
+{% if database != "none" %}
+output "database_instance_id" {
+  description = "ID of the {{ database }} instance"
+  value       = aws_instance.database.id
+}
+
+output "private_subnet_id" {
+  description = "Private subnet ID"
+  value       = aws_subnet.private.id
+}
+{% endif %}
+
+output "public_subnet_id" {
+  description = "Public subnet ID"
+  value       = aws_subnet.public.id
+}
