@@ -1,0 +1,39 @@
+graph TB
+    subgraph Internet ["Internet"]
+        Users["Users"]
+    end
+    
+    subgraph VPC ["VPC: us-east-1"]
+        subgraph PublicSubnet ["Public Subnet 10.0.1.0/24"]
+            ALB["Application Load Balancer\nALB Port: 80"]
+        EC21["EC2 Instance 1\nNode.js App\nPort: 80"]
+        end
+        
+        subgraph PrivateSubnet ["Private Subnet 10.0.2.0/24"]
+            DB["MongoDB\nEC2 Instance\nPort: 27017"]
+        end
+        
+        subgraph Security ["Security Groups"]
+            ALBSG["ALB SG Allow: 80"]
+            AppSG["App SG Allow: 80, 22"]
+            DBSG["DB SG Allow: 27017, 22"]
+        end
+    end
+
+    Users -->|HTTP| ALB
+    ALB -->|HTTP| EC21
+    EC21 -->|MongoDB Port 27017| DB
+
+    ALB -.->|Protected by| ALBSG
+    EC21 -.->|Protected by| AppSG
+    DB -.->|Protected by| DBSG
+
+    style VPC fill:#e0f2fe,stroke:#0369a1,stroke-width:3px
+    style PublicSubnet fill:#fef3c7,stroke:#d97706,stroke-width:2px
+    style PrivateSubnet fill:#fce7f3,stroke:#be185d,stroke-width:2px
+    style Internet fill:#f3f4f6,stroke:#6b7280,stroke-width:2px
+    style ALB fill:#d1fae5,stroke:#059669,stroke-width:2px
+    style DB fill:#fce7f3,stroke:#be185d,stroke-width:2px
+    style Security fill:#ede9fe,stroke:#7c3aed,stroke-width:2px
+
+    style EC21 fill:#dbeafe,stroke:#2563eb,stroke-width:2px

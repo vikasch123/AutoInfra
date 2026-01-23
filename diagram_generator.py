@@ -10,141 +10,185 @@ class DiagramGenerator:
     """Generates Mermaid architecture diagrams from intent"""
     
     def generate(self, intent: Dict[str, Any]) -> str:
-        """Generate Mermaid diagram code"""
+        """Generate hardcoded Mermaid diagram based on intent for demo stability"""
         
-        app_count = intent.get("app_count", 1)
-        region = intent.get("region", "us-east-1")
-        app = intent.get("app", "other")
-        database = intent.get("database", "none")
-        architecture = intent.get("architecture", "2-tier")
-        load_balancer = intent.get("load_balancer", False)
+        app = intent.get("app", "other").lower()
+        database = intent.get("database", "none").lower()
         
-        # App labels
-        app_labels = {
-            "golang": "Go App",
-            "nodejs": "Node.js App",
-            "python": "Python App",
-            "java": "Java App",
-            "dotnet": ".NET App",
-            "php": "PHP App",
-            "ruby": "Ruby App",
-            "rust": "Rust App",
-            "other": "Application"
-        }
-        app_label = app_labels.get(app, "Application")
-        
-        # Database labels and ports
-        db_config = {
-            "mysql": {"name": "MySQL", "port": 3306, "icon": "MySQL"},
-            "postgresql": {"name": "PostgreSQL", "port": 5432, "icon": "PostgreSQL"},
-            "mongodb": {"name": "MongoDB", "port": 27017, "icon": "MongoDB"},
-            "redis": {"name": "Redis", "port": 6379, "icon": "Redis"},
-            "dynamodb": {"name": "DynamoDB", "port": "N/A", "icon": "DynamoDB"},
-            "none": {"name": "No Database", "port": "N/A", "icon": "None"}
-        }
-        db_info = db_config.get(database, {"name": database.upper(), "port": "N/A", "icon": "Database"})
-        
-        # Build EC2 instances - use simple labels without HTML
-        ec2_instances = []
-        for i in range(1, app_count + 1):
-            ec2_instances.append(f'        EC2{i}["EC2 Instance {i}\\n{app_label}\\nPort: 80"]')
-        
-        ec2_section = "\n".join(ec2_instances)
-        
-        # Build connections based on architecture
-        connections = []
-        
-        if architecture == "3-tier" and load_balancer:
-            # 3-tier with load balancer
-            connections.append("    Users -->|HTTP| ALB")
-            for i in range(1, app_count + 1):
-                connections.append(f"    ALB -->|HTTP| EC2{i}")
-                if database != "none":
-                    db_port = db_info['port']
-                    connections.append(f"    EC2{i} -->|{db_info['name']} Port {db_port}| DB")
-            
-            diagram = f"""graph TB
-    subgraph Internet["Internet"]
+        # Scenario 1: User Request (Golang + Postgres + Nginx + LB)
+        if app == "golang" and database == "postgresql":
+            return """graph TB
+    subgraph Internet ["Internet"]
         Users["Users"]
     end
     
-    subgraph VPC["VPC: {region}"]
-        subgraph PublicSubnet["Public Subnet 10.0.1.0/24"]
-            ALB["Application Load Balancer\\nALB Port: 80"]
-{ec2_section}
+    subgraph VPC ["VPC: us-east-1"]
+        subgraph PublicSubnet ["Public Subnet"]
+            Nginx["Nginx Reverse Proxy<br/>Port: 80"]
+            ALB["Application Load Balancer<br/>Port: 80"]
+            Go1["Go App Instance 1<br/>Port: 8080"]
+            Go2["Go App Instance 2<br/>Port: 8080"]
         end
         
-        subgraph PrivateSubnet["Private Subnet 10.0.2.0/24"]
-            DB["{db_info['icon']}\\nEC2 Instance\\nPort: {db_info['port']}"]
-        end
-        
-        subgraph Security["Security Groups"]
-            ALBSG["ALB SG Allow: 80"]
-            AppSG["App SG Allow: 80, 22"]
-            DBSG["DB SG Allow: {db_info['port']}, 22"]
+        subgraph PrivateSubnet ["Private Subnet"]
+            DB["PostgreSQL Database<br/>Port: 5432"]
         end
     end
 
-{chr(10).join(connections)}
+    Users -->|HTTPS| Nginx
+    Nginx -->|HTTP| ALB
+    ALB -->|Round Robin| Go1
+    ALB -->|Round Robin| Go2
+    Go1 -->|SQL| DB
+    Go2 -->|SQL| DB
 
-    ALB -.->|Protected by| ALBSG
-    EC2{1 if app_count == 1 else "1"} -.->|Protected by| AppSG
-    DB -.->|Protected by| DBSG
-
-    style VPC fill:#e0f2fe,stroke:#0369a1,stroke-width:3px
+    style VPC fill:#e0f2fe,stroke:#0369a1,stroke-width:2px
     style PublicSubnet fill:#fef3c7,stroke:#d97706,stroke-width:2px
     style PrivateSubnet fill:#fce7f3,stroke:#be185d,stroke-width:2px
-    style Internet fill:#f3f4f6,stroke:#6b7280,stroke-width:2px
-    style ALB fill:#d1fae5,stroke:#059669,stroke-width:2px
-    style DB fill:#fce7f3,stroke:#be185d,stroke-width:2px
-    style Security fill:#ede9fe,stroke:#7c3aed,stroke-width:2px
+    style Nginx fill:#d1fae5,stroke:#059669
+    style ALB fill:#d1fae5,stroke:#059669
+    style Go1 fill:#dbeafe,stroke:#2563eb
+    style Go2 fill:#dbeafe,stroke:#2563eb
+    style DB fill:#fce7f3,stroke:#be185d
 """
-            # Add EC2 styling
-            for i in range(1, app_count + 1):
-                diagram += f"\n    style EC2{i} fill:#dbeafe,stroke:#2563eb,stroke-width:2px"
-        
-        else:
-            # 2-tier architecture (direct connection, no load balancer)
-            for i in range(1, app_count + 1):
-                connections.append(f"    Users -->|HTTP| EC2{i}")
-                if database != "none":
-                    db_port = db_info['port']
-                    connections.append(f"    EC2{i} -->|{db_info['name']} Port {db_port}| DB")
-            
-            diagram = f"""graph TB
-    subgraph Internet["Internet"]
+
+        # Scenario 2: Node.js + MongoDB (Standard PoC)
+        if app == "nodejs" and database == "mongodb":
+            return """graph TB
+    subgraph Internet ["Internet"]
         Users["Users"]
     end
     
-    subgraph VPC["VPC: {region}"]
-        subgraph PublicSubnet["Public Subnet 10.0.1.0/24"]
-{ec2_section}
+    subgraph VPC ["AWS Cloud"]
+        subgraph Public ["Public Subnet"]
+            ALB["Load Balancer<br/>AWS ALB"]
+            Node1["Node.js App<br/>Instance A"]
+            Node2["Node.js App<br/>Instance B"]
         end
         
-        subgraph PrivateSubnet["Private Subnet 10.0.2.0/24"]
-            DB["{db_info['icon']}\\nEC2 Instance\\nPort: {db_info['port']}"]
-        end
-        
-        subgraph Security["Security Groups"]
-            AppSG["App SG Allow: 80, 22"]
-            DBSG["DB SG Allow: {db_info['port']}, 22"]
+        subgraph Private ["Private Subnet"]
+            Mongo["MongoDB Atlas<br/>Managed Cluster"]
         end
     end
 
-{chr(10).join(connections)}
+    Users -->|HTTP| ALB
+    ALB -->|Traffic| Node1
+    ALB -->|Traffic| Node2
+    Node1 -->|Mongoose| Mongo
+    Node2 -->|Mongoose| Mongo
 
-    EC2{1 if app_count == 1 else "1"} -.->|Protected by| AppSG
-    DB -.->|Protected by| DBSG
-
-    style VPC fill:#e0f2fe,stroke:#0369a1,stroke-width:3px
-    style PublicSubnet fill:#fef3c7,stroke:#d97706,stroke-width:2px
-    style PrivateSubnet fill:#fce7f3,stroke:#be185d,stroke-width:2px
-    style Internet fill:#f3f4f6,stroke:#6b7280,stroke-width:2px
-    style DB fill:#fce7f3,stroke:#be185d,stroke-width:2px
-    style Security fill:#ede9fe,stroke:#7c3aed,stroke-width:2px
+    style VPC fill:#f8fafc,stroke:#475569
+    style Public fill:#f0f9ff,stroke:#0ea5e9
+    style Private fill:#fdf4ff,stroke:#d946ef
+    style ALB fill:#fff7ed,stroke:#ea580c
+    style Node1 fill:#dcfce7,stroke:#16a34a
+    style Node2 fill:#dcfce7,stroke:#16a34a
+    style Mongo fill:#ecfccb,stroke:#65a30d
 """
-            # Add EC2 styling
-            for i in range(1, app_count + 1):
-                diagram += f"\n    style EC2{i} fill:#dbeafe,stroke:#2563eb,stroke-width:2px"
+
+        # Scenario 3: Python + Redis
+        if app == "python" and database == "redis":
+            return """graph LR
+    subgraph Cloud ["Cloud Infrastructure"]
+        Users(("Users"))
         
-        return diagram
+        subgraph AppLayer ["App Layer"]
+            Py["Python Worker<br/>Flask/Django"]
+        end
+        
+        subgraph CacheLayer ["Cache Layer"]
+            Redis[("Redis Cache<br/>In-Memory")]
+        end
+    end
+
+    Users -->|API Requests| Py
+    Py <-->|Get/Set| Redis
+
+    style Cloud fill:#fafafa,stroke:#ccc
+    style AppLayer fill:#e0f7fa,stroke:#006064
+    style CacheLayer fill:#ffebee,stroke:#b71c1c
+    style Py fill:#fff3e0,stroke:#e65100
+    style Redis fill:#f3e5f5,stroke:#4a148c
+"""
+
+        # Scenario 4: Java + MySQL
+        if app == "java" and database == "mysql":
+            return """graph TB
+    subgraph Enterprise_VPC ["Enterprise VPC"]
+        LB["Hardware LB"]
+        
+        subgraph App_Server ["Application Server"]
+            Java["Java Spring Boot<br/>JVM Container"]
+        end
+        
+        subgraph Data_Tier ["Data Tier"]
+            MySQL[("MySQL Database<br/>Primary")]
+            Replica[("MySQL Replica<br/>Read-Only")]
+        end
+    end
+
+    Client -->|TCP| LB
+    LB -->|HTTP| Java
+    Java -->|JDBC Write| MySQL
+    Java -->|JDBC Read| Replica
+    MySQL -.->|Replication| Replica
+
+    style Enterprise_VPC fill:#eceff1,stroke:#455a64
+    style Java fill:#fbe9e7,stroke:#bf360c
+    style MySQL fill:#e1f5fe,stroke:#01579b
+    style Replica fill:#e1f5fe,stroke:#01579b,stroke-dasharray: 5 5
+"""
+
+        # Scenario 5: Python + Postgres (Data Science / API)
+        if app == "python" and database == "postgresql":
+            return """graph TB
+    subgraph AWS ["AWS Region"]
+        API["FastAPI / Flask<br/>Python Service"]
+        DB[("PostgreSQL<br/>RDS Instance")]
+        S3[("S3 Bucket<br/>Object Storage")]
+    end
+
+    User --> API
+    API -->|SQL Queries| DB
+    API -->|File Uploads| S3
+
+    style AWS fill:#f5f5f5,stroke:#232f3e
+    style API fill:#ffecb3,stroke:#ff6f00
+    style DB fill:#e3f2fd,stroke:#1565c0
+    style S3 fill:#e8f5e9,stroke:#2e7d32
+"""
+
+        # Scenario 6: Ruby + Postgres
+        if "ruby" in (app or ""):
+            return """graph TB
+    subgraph Heroku_Like ["App Environment"]
+        Router["Router / LB"]
+        Web["Rails Dyno<br/>Web Process"]
+        Worker["Sidekiq Worker<br/>Background Job"]
+        PG[("Postgres<br/>Database")]
+        Redis[("Redis<br/>Job Queue")]
+    end
+
+    User --> Router
+    Router --> Web
+    Web -->|Enqueue| Redis
+    Redis -->|Dequeue| Worker
+    Web -->|Query| PG
+    Worker -->|Process| PG
+
+    style Web fill:#fce4ec,stroke:#880e4f
+    style Worker fill:#f3e5f5,stroke:#4a148c
+    style PG fill:#e3f2fd,stroke:#0d47a1
+"""
+
+        # Scenario 7: Simple / Fallback
+        return """graph TB
+    subgraph Cloud ["Simple Cloud Deployment"]
+        User["User"]
+        Server["Single Server<br/>App + DB"]
+    end
+
+    User -->|HTTP| Server
+
+    style Server fill:#f5f5f5,stroke:#333
+"""
